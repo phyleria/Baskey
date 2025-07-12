@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User can create multiple pools
+  createdPools BirthdayPool[] @relation("PoolCreator")
+  
+  // User can contribute to multiple pools
+  contributions Contribution[]
+  
+  // User can be invited to multiple pools
+  invitations   Invitation[]
+
+  @@map("users")
+}
+
+model BirthdayPool {
+  id              String   @id @default(cuid())
+  name            String
+  targetAmount    Float
+  currency        String   @default("USD")
+  birthdayDate    DateTime
+  birthdayEmail   String
+  status          PoolStatus @default(ACTIVE)
+  totalCollected  Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  creator         User     @relation("PoolCreator", fields: [creatorId], references: [id])
+  creatorId       String
+  
+  contributions   Contribution[]
+  invitations     Invitation[]
+
+  @@map("birthday_pools")
+}
+
+model Contribution {
+  id          String   @id @default(cuid())
+  amount      Float
+  currency    String
+  isAnonymous Boolean  @default(false)
+  status      ContributionStatus @default(PENDING)
+  paymentId   String?  // Chimoney payment ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  contributor User         @relation(fields: [contributorId], references: [id])
+  contributorId String
+  
+  pool        BirthdayPool @relation(fields: [poolId], references: [id])
+  poolId      String
+
+  @@map("contributions")
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  email     String
+  status    InvitationStatus @default(PENDING)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  pool      BirthdayPool @relation(fields: [poolId], references: [id])
+  poolId    String
+  
+  invitedBy User     @relation(fields: [invitedById], references: [id])
+  invitedById String
+
+  @@map("invitations")
+}
+
+enum PoolStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ContributionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
